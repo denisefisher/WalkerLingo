@@ -1,23 +1,143 @@
+import hmac
+import os
+
 import streamlit as st
 import google.generativeai as genai
 
 # --- 页面配置 ---
 st.set_page_config(page_title="Walker Lingo", page_icon="🇺🇸", layout="wide")
 
+
+def verify_login(username: str, password: str) -> bool:
+    if not username or not password:
+        return False
+    default_user = os.getenv("WALKER_LINGO_USER", "admin")
+    default_pass = os.getenv("WALKER_LINGO_PASS", "WalkerLingo2024!")
+    return hmac.compare_digest(username, default_user) and hmac.compare_digest(
+        password, default_pass
+    )
+
+
+def render_sidebar() -> None:
+    with st.sidebar:
+        st.markdown("### 菜单")
+        st.text_input("搜索模块", placeholder="搜索...")
+        st.markdown("---")
+
+        menu_sections = {
+            "销售管理": [
+                "导航看板",
+                "任务管理",
+                "提交新任务",
+                "任务列表",
+                "任务日程",
+                "任务详情",
+                "提醒提交任务",
+                "定时任务",
+                "周报",
+            ],
+            "产品中心": ["产品报表", "产品报价", "产品优化"],
+            "Amazon管理": ["Amazon销售概要", "销售目标管理", "Listing优化", "Amazon订单管理"],
+            "TikTok管理": [
+                "TikTok销售统计",
+                "TikTok推广后台",
+                "视频群管理",
+                "达人作品管理",
+                "采集达人",
+                "达人查询",
+                "TikTok SKU映射",
+                "旗舰产品推荐",
+                "TikTok订单管理",
+                "达人投顾后台",
+                "淘搜任务板",
+            ],
+            "创作中心": ["AI图片工厂", "内容管理"],
+            "产品管理": [
+                "供应商管理",
+                "采购需求单",
+                "生成采购单",
+                "采购管理",
+                "入库审核",
+                "入库管理",
+                "出货管理",
+                "货物管理",
+                "库存查询",
+                "库存盘点",
+                "库存预警",
+            ],
+            "财务": ["提交报销凭证", "报销报表", "付款审核", "报销统计", "会计凭证"],
+            "行政人事": ["职位申请表", "入职登记", "员工管理", "用户设置"],
+        }
+
+        for section, items in menu_sections.items():
+            with st.expander(section, expanded=False):
+                for item in items:
+                    st.caption(f"• {item}")
+
+        st.markdown("---")
+        st.caption("系统")
+        if st.button("退出登录"):
+            st.session_state.authenticated = False
+            st.rerun()
+
+
+def render_login() -> None:
+    st.markdown("## 欢迎使用 Walker Lingo 控制台")
+    st.caption("请登录以继续访问系统。")
+    with st.form("login_form"):
+        username = st.text_input("用户名", placeholder="请输入账号")
+        password = st.text_input("密码", type="password", placeholder="请输入密码")
+        submit = st.form_submit_button("登录")
+    if submit:
+        if verify_login(username, password):
+            st.session_state.authenticated = True
+            st.session_state.username = username
+            st.success("登录成功，正在进入系统...")
+            st.rerun()
+        else:
+            st.error("用户名或密码错误，请重试。")
+
+
+def ensure_auth() -> bool:
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+    return st.session_state.authenticated
+
 # --- 侧边栏：设置区 ---
-with st.sidebar:
-    st.header("🔑 设置 (Settings)")
-    st.info("请在下方输入你的 Google API Key")
-    api_key = st.text_input("Gemini API Key", type="password", help="去 aistudio.google.com 申请")
-    
-    st.markdown("---")
-    st.markdown("### Denise's Profile")
-    st.caption("Owner: Walkerfit & Hifiwalker")
-    st.caption("Goal: US Expansion & IELTS 7.0")
+if not ensure_auth():
+    render_login()
+    st.stop()
+
+render_sidebar()
+
+st.sidebar.header("🔑 设置 (Settings)")
+st.sidebar.info("请在下方输入你的 Google API Key")
+api_key = st.sidebar.text_input(
+    "Gemini API Key", type="password", help="去 aistudio.google.com 申请"
+)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Denise's Profile")
+st.sidebar.caption("Owner: Walkerfit & Hifiwalker")
+st.sidebar.caption("Goal: US Expansion & IELTS 7.0")
 
 # --- 主程序 ---
-st.title("🇺🇸 Walker Lingo")
-st.subheader("Your Pocket AI English Coach")
+st.title("🇺🇸 Walker Lingo 控制台")
+st.subheader(f"欢迎回来，{st.session_state.get('username', '用户')}")
+
+st.markdown(
+    """
+    <div style="padding: 16px; border-radius: 12px; background: #F7F8FA; margin-bottom: 16px;">
+        <strong>今日概览</strong>
+        <ul style="margin: 8px 0 0 16px;">
+            <li>待处理任务：8</li>
+            <li>待提交内容：3</li>
+            <li>待跟进客户：5</li>
+        </ul>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 if not api_key:
     st.warning("⬅️ 请先在左侧侧边栏输入 API Key 才能开始使用。")
